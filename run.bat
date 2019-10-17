@@ -1,0 +1,1 @@
+mpiexec.exe -localonly 2 debug\d_mpi.exe
