@@ -1,1 +1,1 @@
-mpiexec.exe -n 2 debug\d_mpi.exe
+mpiexec.exe -n 5 release\d_mpi.exe
