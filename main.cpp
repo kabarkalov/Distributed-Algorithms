@@ -87,10 +87,29 @@ int CreateStarTopology(MPI_Comm InComm, MPI_Comm* StarComm)
 	return MPI_SUCCESS;
 }
 
-//проверка топологии - можно отправлять сообщения только соседям
+//Проверка топологии - можно отправлять сообщения только соседям? или нет?
 int CheckTopology(MPI_Comm Comm)
 {
-
+	int ProcNum, ProcRank, RecvRank;
+	MPI_Status Status;
+	
+	MPI_Comm_size(Comm, &ProcNum);
+	MPI_Comm_rank(Comm, &ProcRank);
+	if (ProcRank == 0) 
+	{
+		// Действия, выполняемые только процессом с рангом 0
+		printf("\n Hello from process %3d", ProcRank);
+		for (int i = 1; i<ProcNum; i++) 
+		{
+			MPI_Recv(&RecvRank, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, Comm, &Status);
+			printf("\n Hello from process %3d", RecvRank);
+		}
+	}
+	else
+	{// Сообщение, отправляемое всеми процессами, кроме процесса с рангом 0
+		MPI_Send(&ProcRank, 1, MPI_INT, 0, 0, Comm);
+	}
+	return 0;
 }
 
 //Печать топологии - каждый печатает своих соседей
@@ -119,7 +138,7 @@ int PrintTopology(MPI_Comm Comm)
 	return MPI_SUCCESS;
 
 }
-
+//Эта функция пока не написана до конца
 int GetTopology(MPI_Comm Comm)
 {
 	int res;//Результат выполнения MPI-функций
@@ -167,18 +186,18 @@ int main(int argc, char *argv[])
 {
 	MPI_Init(&argc, &argv);
 	
-	MPI_Comm Comm;
+	MPI_Comm Comm;//Создаем свой коммуникатор со своей топологией
 	int res = CreateRingTopology(MPI_COMM_WORLD,&Comm);
 	if (res != MPI_SUCCESS)
 	{
 		std::cout <<" Something wrong while creating topology " << std::endl;
 		return res;
 	}
-
-	res = PrintTopology(Comm);
+	//Проверка созданной топологии - собираем сообщения на 0-м процессе
+	res = CheckTopology(Comm);
 	if (res != MPI_SUCCESS)
 	{
-		std::cout << " Something wrong while printing topology " << std::endl;
+		std::cout << " Something wrong while working with topology " << std::endl;
 		return res;
 	}
 
