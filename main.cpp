@@ -2,6 +2,8 @@
 #include <iostream>
 #include <vector>
 
+#define POSITION 1
+
 //Создание топологии "кольцо"
 int CreateRingTopology(MPI_Comm InComm, MPI_Comm* RingComm)
 {
@@ -132,7 +134,7 @@ int PrintTopology(MPI_Comm Comm)
 	
 	for (int i = 0; i < NumNeighbors; i++)
 	{
-		std::cout << " ProcRank = " << ProcRank << " Neighbors["<<i<<"] = "<< Neighbors[i] <<std::endl;
+		std::cout << std::endl << " ProcRank = " << ProcRank << " Neighbors["<<i<<"] = "<< Neighbors[i] <<std::endl;
 	}
 
 	return MPI_SUCCESS;
@@ -142,39 +144,48 @@ int PrintTopology(MPI_Comm Comm)
 int GetTopology(MPI_Comm Comm)
 {
 	int res;//Результат выполнения MPI-функций
-	int part = 0;//Флаг участия в алгоритме
+	bool part = false;//Флаг участия в алгоритме
 
-	int ProcRank;//Номер текущего процесса
-	res = MPI_Comm_rank(Comm, &ProcRank);
+	int ProcId;//Номер текущего процесса
+	res = MPI_Comm_rank(Comm, &ProcId);
 	if (res != MPI_SUCCESS) return res;
 
 	//Число соседей текущего процесса
 	int NumNeighbors;
-	res = MPI_Graph_neighbors_count(Comm, ProcRank, &NumNeighbors);
+	res = MPI_Graph_neighbors_count(Comm, ProcId, &NumNeighbors);
 	if (res != MPI_SUCCESS) return res;
 
 	//Номера соседей текущего процесса
 	int *Neighbors = new int[NumNeighbors];
-	MPI_Graph_neighbors(Comm, ProcRank, NumNeighbors, Neighbors);
+	MPI_Graph_neighbors(Comm, ProcId, NumNeighbors, Neighbors);
 	if (res != MPI_SUCCESS) return res;
 
 	for (int i = 0; i < NumNeighbors; i++)
 	{
-		std::cout << " ProcRank = " << ProcRank << " Neighbors[" << i << "] = " << Neighbors[i] << std::endl;
+		std::cout << " ProcId = " << ProcId << " Neighbors[" << i << "] = " << Neighbors[i] << std::endl;
 	}
 
 	std::vector<int> proc_known;
-	proc_known.push_back(ProcRank);
-	std::vector<std::pair<int, int>> edges_known;
+	proc_known.push_back(ProcId);
+	std::vector<std::pair<int, int>> channels_known;
 
 	for (int i = 0; i < NumNeighbors; i++)
 	{
-		edges_known.push_back({ ProcRank, Neighbors[i] });
+		channels_known.push_back({ ProcId, Neighbors[i] });
 	}
 
 	//Отправить позиции соседям
 
-	part = 1;
+	//Обработать прием позиций от соседей
+	int RecvId;
+	MPI_Status Status;
+	MPI_Recv(&RecvId, 1, MPI_INT, MPI_ANY_SOURCE, POSITION, Comm, &Status);
+
+	//
+
+
+
+	part = true;
 
 	return MPI_SUCCESS;
 
@@ -187,7 +198,7 @@ int main(int argc, char *argv[])
 	MPI_Init(&argc, &argv);
 	
 	MPI_Comm Comm;//Создаем свой коммуникатор со своей топологией
-	int res = CreateRingTopology(MPI_COMM_WORLD,&Comm);
+	int res = CreateStarTopology(MPI_COMM_WORLD,&Comm);
 	if (res != MPI_SUCCESS)
 	{
 		std::cout <<" Something wrong while creating topology " << std::endl;
@@ -195,6 +206,13 @@ int main(int argc, char *argv[])
 	}
 	//Проверка созданной топологии - собираем сообщения на 0-м процессе
 	res = CheckTopology(Comm);
+	if (res != MPI_SUCCESS)
+	{
+		std::cout << " Something wrong while working with topology " << std::endl;
+		return res;
+	}
+	//Печать топологии
+	res = PrintTopology(Comm);
 	if (res != MPI_SUCCESS)
 	{
 		std::cout << " Something wrong while working with topology " << std::endl;
